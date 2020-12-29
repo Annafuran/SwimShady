@@ -18,15 +18,15 @@ float SpecularGGX (float3 normal, float3 viewDir, float3 lightDir, float roughne
 //-----------------------------------------------------------------------------------------
 // Cubemap reflection
 //-----------------------------------------------------------------------------------------
-float3 SpecularReflection (float3 normal, float3 viewDir, float roughness = 0.05)
+float3 CubemapReflection (float3 normal, float3 viewDir, float roughness = 0.05)
 {
-	//beräkna reflektionsvektorn
 	float3 reflectionDir = reflect(viewDir, normal);
-	//beräkna mipmap-nivån, baserat på roughnessvärdet
+	
+	//Calculate mipmap level, based on roughness value
 	float  mipLevel = roughness * (1.7 - 0.7 * roughness) * 6;
-	//sampla inbyggda reflektionstexturen
+	
 	float4 reflectionData = UNITY_SAMPLE_TEXCUBE_LOD(unity_SpecCube0, reflectionDir, mipLevel);
-	//Skit i DecodeHDR, den fixar typ om man använder olika plattformar och skit
+	
 	return DecodeHDR(reflectionData, unity_SpecCube0_HDR);
 }
 
@@ -67,38 +67,7 @@ float4 Cubic (float v)
 }
 
 //-----------------------------------------------------------------------------------------
-// Sample a texture with bicubic filtering
-//-----------------------------------------------------------------------------------------
-float4 tex2DBicubic (sampler2D tex, float2 texCoords, float4 texelSize)
-{
-	texCoords = texCoords * texelSize.zw - 0.5;
-
-	float2 fxy = frac(texCoords);
-	texCoords -= fxy;
-
-	float4 xcubic = Cubic(fxy.x);
-	float4 ycubic = Cubic(fxy.y);
-
-	float4 c = texCoords.xxyy + float2(-0.5, +1.5).xyxy;
-
-	float4 s = float4(xcubic.xz + xcubic.yw, ycubic.xz + ycubic.yw);
-	float4 offset = c + float4(xcubic.yw, ycubic.yw) / s;
-
-	offset *= texelSize.xxyy;
-
-	float4 sample0 = tex2D(tex, offset.xz);
-	float4 sample1 = tex2D(tex, offset.yz);
-	float4 sample2 = tex2D(tex, offset.xw);
-	float4 sample3 = tex2D(tex, offset.yw);
-
-	float sx = s.x / (s.x + s.y);
-	float sy = s.z / (s.z + s.w);
-
-	return lerp( lerp(sample3, sample2, sx), lerp(sample1, sample0, sx), sy);
-}
-
-//-----------------------------------------------------------------------------------------
-// Same as above, but with LOD coordinates
+// Sample a texture with bicubic filtering, with LOD coordinates
 //-----------------------------------------------------------------------------------------
 float4 tex2DlodBicubic (sampler2D tex, float4 texCoords, float4 texelSize)
 {
@@ -125,50 +94,8 @@ float4 tex2DlodBicubic (sampler2D tex, float4 texCoords, float4 texelSize)
 	float sx = s.x / (s.x + s.y);
 	float sy = s.z / (s.z + s.w);
 
-	return lerp( lerp(sample3, sample2, sx), lerp(sample1, sample0, sx), sy);
+	return lerp(lerp(sample3, sample2, sx), lerp(sample1, sample0, sx), sy);
 }
 
-
-//-----------------------------------------------------------------------------------------
-// Ray-box intersection test. Returns the ordered intersections times
-//-----------------------------------------------------------------------------------------
-float2 RayBoxIntersection (float3 rayStart, float3 rayDir, float3 boxCenter, float3 boxSize)
-{
-	float tmin, tmax;
-	float3 bounds[2] = { boxCenter - boxSize * 0.5, boxCenter + boxSize * 0.5 };
- 
-	float3 invdir = 1.0f / rayDir;
- 
-	bool sgn[3] = { invdir.x < 0, invdir.y < 0, invdir.z < 0 };
- 
-	float tymin, tymax, tzmin, tzmax; 
- 
-	tmin =  (bounds[sgn[0]].x   - rayStart.x) * invdir.x; 
-	tmax =  (bounds[1-sgn[0]].x - rayStart.x) * invdir.x; 
-	tymin = (bounds[sgn[1]].y   - rayStart.y) * invdir.y; 
-	tymax = (bounds[1-sgn[1]].y - rayStart.y) * invdir.y; 
- 
-	if ((tmin > tymax) || (tymin > tmax)) 
-		return -1;
-	if (tymin > tmin) 
-		tmin = tymin; 
-	if (tymax < tmax) 
-		tmax = tymax; 
- 
-	tzmin = (bounds[sgn[2]].z   - rayStart.z) * invdir.z; 
-	tzmax = (bounds[1-sgn[2]].z - rayStart.z) * invdir.z; 
- 
-	if ((tmin > tzmax) || (tzmin > tmax)) 
-		return -1;
-	if (tzmin > tmin) 
-		tmin = tzmin; 
-	if (tzmax < tmax) 
-		tmax = tzmax;
- 
-	if (tmax < 0)
-		return -1;
- 
-	return float2(tmin, tmax);
-}
 
 #endif // WATER_STUFF_INCLUDED

@@ -7,8 +7,6 @@
 
         //Color and textur of the water
         WaterColor("WaterColor", Color) = (1,1,1,1)
-        _ExtinctionAmount("Extionction Amount", Range(0,10)) = 0.1
-        _ExtinctionColorAmount("Extionction Color Amount", Range(0,10)) = 0.1
 
         //Waves
         [Header(Wave 1)]
@@ -18,12 +16,10 @@
 
         [Header(Wave 2)]
         _WaveSpeed2("WaveSpeed 2", float) = 35.0
-        _WaveHeight2("WaveHeight 2", Range(0,1)) = 0.4
         _WaveFreq2("WaveFrequency 2", float) = 1.0
 
         _NormalDelta("Normal Delta", Range(0,1)) = 0.1
         _Roughness("Roughness", Range(0,1)) = 0.1
-        _WaveChoppiness("Wave ChopChop", Range(0, 1)) = 0.1
 
 
     }
@@ -31,7 +27,6 @@
     {
         Tags { "Queue" = "Transparent"}
 
-        // Grab the screen behind the object into _BackgroundTexture
         GrabPass
         {
             "_CameraOpaqueTexture"
@@ -39,8 +34,6 @@
 
         Pass
         {
-            //Blending is used to make transparent objects, this is the traditional transperency. Source: Unity Manual
-            //Blend SrcAlpha OneMinusSrcAlpha
             Cull Back
 
             CGPROGRAM
@@ -54,8 +47,6 @@
 
             //Water
             float4 WaterColor;
-            float _ExtinctionAmount;
-            float _ExtinctionColorAmount;
             float albedoConstant;
 
             //Waves
@@ -67,12 +58,10 @@
             float _WaveFreq;
             //Wave2
             float _WaveSpeed2;
-            float _WaveHeight2;
             float _WaveFreq2;
 
             float _NormalDelta;
             float _Roughness;
-            float _WaveChoppiness;
             
             //Camera depth
             sampler2D _CameraDepthTexture;
@@ -102,9 +91,6 @@
             
             float GetHeightDisplacement(float3 worldPos) {
 
-                //NoiseTex_TexelSize
-               // float noiseSample1 = tex2Dlod(NoiseTex, float4(GetWaveUV(worldPos, _WaveFreq, float2(1, 0) * WaveSpeed), 0, 0));
-               // float noiseSample2 = tex2Dlod(NoiseTex, float4(GetWaveUV(worldPos, _WaveFreq2, float2(-1, 1) * _WaveSpeed2), 0, 0)); 
                 float noiseSample1 = tex2DlodBicubic(NoiseTex, float4(GetWaveUV(worldPos, _WaveFreq, float2(1, 0) * WaveSpeed), 0, 0), NoiseTex_TexelSize);
                 float noiseSample2 = tex2DlodBicubic(NoiseTex, float4(GetWaveUV(worldPos, _WaveFreq2, float2(-1, 1) * _WaveSpeed2), 0, 0), NoiseTex_TexelSize);
 
@@ -133,10 +119,9 @@
                 float3 worldPos = mul(UNITY_MATRIX_M, input.vertex).xyz;
                 
                 float originalHeight = worldPos.y;
-                //Höjdkoordinaten vi vill manipulera
+               
+                //The height coordinate we want to manipulate
                 worldPos.y += GetHeightDisplacement(worldPos) * input.color.r;
-
-                //worldPos.xz -= output.normal.xz * _WaveChoppiness;
 
                 output.normal = GetNormal(worldPos, originalHeight);
 
@@ -144,7 +129,6 @@
                 output.pos = mul(UNITY_MATRIX_VP, float4(worldPos, 1));
 
                 output.color = input.color;
-
                 output.worldPos = worldPos;
 
                 //Compute the variables needed to sample screen-space textures in the pixel shader
@@ -164,27 +148,18 @@
             {
                 float3 worldPos = input.worldPos;
                 float3 normal = input.normal;
+                float2 screenUv = input.screenPos.xy/input.screenPos.w;
                 float3 viewDir = normalize(worldPos - _WorldSpaceCameraPos);
 
                 float4 depthSample = SAMPLE_DEPTH_TEXTURE_PROJ(_CameraDepthTexture, input.screenPos);
                 float depth = LinearEyeDepth(depthSample).r;
+                
                 //Ögondjup -> världsavstånd
                 float dist = depth / abs(dot(viewDir, UNITY_MATRIX_V[2].xyz));
-             
-                //Vi beräknar vektorn från kamera till pixel 
-                float3 objectViewDir = normalize(mul(unity_WorldToObject, float4(viewDir, 0)));
-                float2 boxIntersection = RayBoxIntersection(input.objectCameraPos, objectViewDir, float3(0, 0, 0), float3(1.01, 1.01, 1.01));
-                float3 objectIntersection = input.objectCameraPos + objectViewDir * boxIntersection.y;
-                float3 worldIntersection = mul(unity_ObjectToWorld, float4(objectIntersection, 1));
-                float rayTime = length(worldIntersection - worldPos);
-
-                rayTime = min(rayTime, dist - length(worldPos - _WorldSpaceCameraPos));
-
-                float3 extinction = lerp(WaterColor, 1, 0);//exp(-rayTime*_ExtinctionColorAmount));
-                extinction *= exp(-rayTime*_ExtinctionAmount); 
+                float3 extinction = lerp(WaterColor, 1, 0); 
 
                 float3 reflection = 0;
-                reflection += SpecularReflection(normal, viewDir, _Roughness);
+                reflection += CubemapReflection(normal, viewDir, _Roughness);
                 reflection += SpecularGGX(normal, viewDir, -_WorldSpaceLightPos0, _Roughness) * _LightColor0;
 
                 float3 refraction = tex2Dproj(_CameraOpaqueTexture, input.screenPos).rgb;

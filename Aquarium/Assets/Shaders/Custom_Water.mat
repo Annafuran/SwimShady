@@ -24,7 +24,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - NoiseTex:
-        m_Texture: {fileID: 2800000, guid: f255ade271d79514bb4825100e679b81, type: 3}
+        m_Texture: {fileID: 2800000, guid: 8e8c853c03d80f843a13dd9c023e7bc8, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - WaterTex:
@@ -52,15 +52,15 @@ Material:
     - WaveHeight: 0.019
     - WaveSpeed: 0.5
     - _DepthFactor: 1
-    - _ExtinctionAmount: 0.5
-    - _ExtinctionColorAmount: 10
+    - _ExtinctionAmount: 0
+    - _ExtinctionColorAmount: 0
     - _ExtraHeight: 0
     - _NormalDelta: 0.113
     - _Roughness: 0.02
     - _WaveAmp: 0.4
     - _WaveChoppiness: 0.09
-    - _WaveFreq: 0.02
-    - _WaveFreq2: 0.04
+    - _WaveFreq: 0.25
+    - _WaveFreq2: 0.25
     - _WaveHeight2: 0
     - _WaveSpeed: 70
     - _WaveSpeed2: 0.5
